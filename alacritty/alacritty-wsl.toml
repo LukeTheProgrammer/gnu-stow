@@ -1,0 +1,15 @@
+# Configuration for Alacritty, the GPU enhanced terminal emulator.
+
+# https://alacritty.org/config-alacritty.html
+
+shell = { program = "C:\\Users\\Luke\\AppData\\Local\\Microsoft\\WindowsApps\\ubuntu2204.exe" }
+
+[window]
+dimensions = { columns = 160, lines = 40 }
+padding = { x = 2, y = 2 }
+
+[font]
+size = 14
+
+[selection]
+save_to_clipboard = true
