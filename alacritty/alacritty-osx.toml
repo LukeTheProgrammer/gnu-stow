@@ -9,5 +9,7 @@ padding = { x = 2, y = 2 }
 [font]
 size = 14
 
+normal = { family = "FiraCode Nerd Font", style = "Regular" }
+
 [selection]
 save_to_clipboard = true
