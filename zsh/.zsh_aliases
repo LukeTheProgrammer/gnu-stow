@@ -1,0 +1,7 @@
+
+# System
+alias ll='ls -lah'
+
+# Laravel
+alias sail='vendor/bin/sail'
+
