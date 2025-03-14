@@ -4,6 +4,10 @@ if [ -f ~/.zsh_aliases ]; then
     source $HOME/.zsh_aliases
 fi
 
+if [ -f ~/.git_aliases ]; then
+    source $HOME/.git_aliases
+fi
+
 # alias ll='ls -lah'
 
 export PATH="/usr/local/sbin:$PATH"
