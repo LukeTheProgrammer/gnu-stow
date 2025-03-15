@@ -3,5 +3,5 @@
 alias ll='ls -lah'
 
 # Laravel
-alias sail='vendor/bin/sail'
+alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
 

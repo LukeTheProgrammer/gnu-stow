@@ -1,10 +1,12 @@
 # git aliases
 
-alias g.s='git status'
 alias g.a='git add'
-alias g.p='git push'
 alias g.b='git branch'
-alias g.co='git checkout'
 alias g.cm='git commit -m'
+alias g.co='git checkout'
 alias g.del='git branch -D'
 alias g.delr='git push origin --delete'
+alias g.m='git merge'
+alias g.pl='git pull'
+alias g.ps='git push'
+alias g.s='git status'

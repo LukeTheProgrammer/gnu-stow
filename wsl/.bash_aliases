@@ -8,5 +8,7 @@ fi
 
 alias ll='ls -lah'
 
+alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
+
 alias rc.push='/mnt/b/DEV/RedCat/redcat-rsync.sh push'
 alias rc.pull='/mnt/b/DEV/RedCat/redcat-rsync.sh pull'
