@@ -8,6 +8,4 @@ alias sail='./vendor/bin/sail'
 # Laravel Testbench https://github.com/orchestral/testbench
 alias testbench='./vendor/bin/testbench'
 alias tb='./vendor/bin/testbench'
-
-
-
+alias tb.test='./vendor/bin/testbench test -c ./phpunit.xml'
