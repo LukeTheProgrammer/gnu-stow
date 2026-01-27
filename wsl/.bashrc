@@ -127,3 +127,21 @@ export NVM_DIR="$HOME/.nvm"
 # https://starship.rs/
 
 eval "$(starship init bash)"
+
+# pnpm
+export PNPM_HOME="/home/luke/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+# Added by flyctl installer
+export FLYCTL_INSTALL="/home/luke/.fly"
+export PATH="$FLYCTL_INSTALL/bin:$PATH"
+
+# Claude Code
+export PATH="$HOME/.local/bin:$PATH"
+
+
+
