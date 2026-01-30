@@ -9,3 +9,13 @@ alias sail='./vendor/bin/sail'
 alias testbench='./vendor/bin/testbench'
 alias tb='./vendor/bin/testbench'
 alias tb.test='./vendor/bin/testbench test -c ./phpunit.xml'
+
+rsync-tui() {
+    local program="$HOME/Dev/scripts/rsync-tui/rsync-tui"
+    if [ -x "$program" ]; then
+        "$program" "$@"
+    else
+        echo "Error: rsync-tui not found or not executable at $program" >&2
+        return 1
+    fi
+}

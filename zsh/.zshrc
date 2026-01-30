@@ -1,3 +1,6 @@
+# Local Bin
+export PATH="$HOME/.local/bin:$PATH"
+
 # Homebrew
 export PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
 
