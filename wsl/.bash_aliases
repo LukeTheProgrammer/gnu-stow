@@ -7,6 +7,8 @@ fi
 alias ll='ls -lah'
 
 alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
+alias pint='./vendor/bin/pint'
+alias phpstan='./vendor/bin/phpstan -b --allow-empty-baseline'
 
 rsync-tui() {
     local program="$HOME/Dev/scripts/rsync-tui/rsync-tui"

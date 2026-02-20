@@ -13,6 +13,7 @@ alias g.ps='git push'
 alias g.s='git status'
 
 gdelete() {
+    echo
     echo "Deleting local and remote branch: $1"
     echo
     
