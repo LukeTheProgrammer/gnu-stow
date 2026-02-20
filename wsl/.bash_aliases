@@ -9,6 +9,7 @@ alias ll='ls -lah'
 alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
 alias pint='./vendor/bin/pint'
 alias phpstan='./vendor/bin/phpstan -b --allow-empty-baseline'
+alias phpunit='./vendor/bin/phpunit --testdox --stop-on-error --stop-on-failure --display-deprecations'
 
 rsync-tui() {
     local program="$HOME/Dev/scripts/rsync-tui/rsync-tui"
