@@ -4,6 +4,9 @@ alias ll='ls -lah'
 
 # Laravel
 alias sail='./vendor/bin/sail'
+alias pint='./vendor/bin/pint'
+alias phpstan='./vendor/bin/phpstan -b --allow-empty-baseline'
+alias phpunit='./vendor/bin/phpunit --testdox --stop-on-error --stop-on-failure --display-deprecations'
 
 # Laravel Testbench https://github.com/orchestral/testbench
 alias testbench='./vendor/bin/testbench'
