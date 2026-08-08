@@ -108,7 +108,8 @@ beyond the codebase:
   implementing both.
 - Don't add an interface speculatively for something that isn't a third-party
   service. Internal domain services (`CartService`, `CouponService`) have no second
-  implementation coming and don't need one.
+  implementation coming and don't need one — they still get a domain folder and a
+  facade, just no interface. See `laravel-app-services`.
 
 ## Inbound: webhooks and callbacks
 
