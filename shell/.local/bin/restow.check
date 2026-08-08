@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# restow.check <package>... — show what each tracked file currently links to.
+#
+#   link  correctly symlinked into the dotfiles repo
+#   fold  reached through a folded parent directory symlink — also correct
+#   FILE  a real file, not a symlink. Something replaced the link with its own
+#         copy; edits there no longer reach the repo and sync has silently
+#         stopped. This is the one to act on.
+#   MISS  tracked in the repo but absent from $HOME — run: restow <package>
+
+set -uo pipefail
+
+STOW_DIR="${STOW_DIR:-$HOME/dotfiles}"
+
+if [ $# -eq 0 ]; then
+    echo "usage: restow.check <package>..." >&2
+    exit 1
+fi
+
+status=0
+
+for pkg in "$@"; do
+    pkg=${pkg%/}
+
+    if [ ! -d "$STOW_DIR/$pkg" ]; then
+        echo "restow.check: no such package: $pkg" >&2
+        exit 1
+    fi
+
+    echo "$pkg:"
+
+    while IFS= read -r f; do
+        # Stow ignores these by default, so they are never linked and their
+        # absence is not a fault.
+        case $(basename "$f") in
+            README*|LICENSE*|COPYING|.gitignore) continue ;;
+        esac
+
+        # A folded parent means the file is reached through a single directory
+        # symlink and is correctly linked, even though the file itself is not
+        # one. Check this before anything else.
+        folded=""
+        parent=$(dirname "$f")
+        while [ "$parent" != "." ]; do
+            if [ -L "$HOME/$parent" ]; then
+                folded="$parent"
+                break
+            fi
+            parent=$(dirname "$parent")
+        done
+
+        target="$HOME/$f"
+
+        if [ -n "$folded" ]; then
+            printf '  fold  %s  (via %s/)\n' "$f" "$folded"
+        elif [ -L "$target" ]; then
+            printf '  link  %s -> %s\n' "$f" "$(readlink "$target")"
+        elif [ -e "$target" ]; then
+            printf '  FILE  %s  (not a symlink — repo is out of sync)\n' "$f"
+            status=1
+        else
+            printf '  MISS  %s  (not linked — run: restow %s)\n' "$f" "$pkg"
+            status=1
+        fi
+    done < <(cd "$STOW_DIR/$pkg" && find . -mindepth 1 \( -type f -o -type l \) -printf '%P\n' | sort)
+done
+
+exit $status

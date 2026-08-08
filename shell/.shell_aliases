@@ -1,0 +1,30 @@
+# Shared shell config — sourced by both ~/.bash_aliases and ~/.zsh_aliases.
+# POSIX only: no bashisms, no zsh-isms. Shell-specific things stay in the
+# per-shell file that sources this one.
+#
+# Anything longer than a line or two belongs in shell/.local/bin/ as an
+# executable instead — see `restow` and `restow.check` there.
+
+# System
+alias ll='ls -lah'
+
+# Laravel
+alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
+alias pint='./vendor/bin/pint'
+alias phpstan='./vendor/bin/phpstan -b --allow-empty-baseline'
+alias phpunit='./vendor/bin/phpunit --testdox --stop-on-error --stop-on-failure --display-deprecations'
+
+# Laravel Testbench https://github.com/orchestral/testbench
+alias testbench='./vendor/bin/testbench'
+alias tb='./vendor/bin/testbench'
+alias tb.test='./vendor/bin/testbench test -c ./phpunit.xml'
+
+rsync-tui() {
+    program="$HOME/Dev/scripts/rsync-tui/rsync-tui"
+    if [ -x "$program" ]; then
+        "$program" "$@"
+    else
+        echo "Error: rsync-tui not found or not executable at $program" >&2
+        return 1
+    fi
+}

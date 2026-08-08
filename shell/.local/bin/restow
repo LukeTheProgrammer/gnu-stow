@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#
+# restow <package>... — safely relink one or more GNU Stow dotfiles packages.
+#
+# Wraps three pitfalls that bite when moving between machines:
+#
+#   1. Absolute stow dir. A relative `-d` makes stow emit "BUG in
+#      find_stowed_path? Absolute/relative mismatch" for every symlink in
+#      $HOME pointing outside it — on WSL, every /mnt/c/... link. Harmless,
+#      but it buries real conflict messages.
+#   2. Unstow before stow, so renamed or deleted files don't leave dangling
+#      symlinks behind pointing at paths that no longer exist.
+#   3. Empty-directory pruning, which restores stow's tree folding. If a real
+#      directory survives at stow time, stow descends and links leaf-by-leaf:
+#      new files then need a re-stow to appear, and a directory added inside
+#      an already-linked one is silently missed entirely.
+#
+# Pruning only ever touches directories that (a) the package itself defines,
+# (b) sit below the package's top-level entries, and (c) are already empty.
+
+set -uo pipefail
+
+STOW_DIR="${STOW_DIR:-$HOME/dotfiles}"
+
+usage() {
+    echo "usage: restow <package>..." >&2
+    if [ -d "$STOW_DIR" ]; then
+        echo "packages: $(cd "$STOW_DIR" && ls -d -- */ | tr -d / | tr '\n' ' ')" >&2
+    fi
+    exit 1
+}
+
+[ $# -eq 0 ] && usage
+
+for pkg in "$@"; do
+    pkg=${pkg%/}    # tolerate tab-completed "claude/"
+
+    if [ ! -d "$STOW_DIR/$pkg" ]; then
+        echo "restow: no such package: $pkg" >&2
+        exit 1
+    fi
+done
+
+for pkg in "$@"; do
+    pkg=${pkg%/}
+    echo "restow: $pkg"
+
+    # 1. Unstow. Tolerate failure — the package may not be stowed yet.
+    stow -D -d "$STOW_DIR" -t "$HOME" "$pkg" 2>/dev/null
+
+    # 2. Prune empty dirs this package defines, deepest first, so stow can
+    #    fold. rmdir refuses non-empty dirs, so real content is never lost.
+    #
+    #    -mindepth 2 is critical: it excludes the package's own top-level
+    #    entries. Pruning ~/.claude itself would let stow fold the whole
+    #    directory into one symlink, and Claude Code would then write
+    #    history.jsonl and session logs into the dotfiles repo.
+    while IFS= read -r d; do
+        if [ -d "$HOME/$d" ] && rmdir "$HOME/$d" 2>/dev/null; then
+            echo "  pruned empty ~/${d}"
+        fi
+    done < <(cd "$STOW_DIR/$pkg" && find . -mindepth 2 -type d -printf '%P\n' | sort -r)
+
+    # 3. Relink.
+    if stow -d "$STOW_DIR" -t "$HOME" "$pkg"; then
+        echo "  ok"
+    else
+        echo "  FAILED — resolve the conflicts above, then re-run" >&2
+        exit 1
+    fi
+done
