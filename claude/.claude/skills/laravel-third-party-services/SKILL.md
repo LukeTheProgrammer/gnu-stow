@@ -37,20 +37,15 @@ public function __construct(private readonly MailServiceInterface $mail) {}
 
 Swapping vendors, or standing one up in a test, should be a one-line binding change.
 That only holds if the vendor's types never escape its own directory. The failure
-mode is quiet: an integration starts in one class, then a vendor class name gets
-type-hinted in a controller, then in a job, and now the vendor is load-bearing across
-the codebase and can't be replaced or faked without touching all of it.
+mode is quiet, and it always runs the same way.
 
-Concretely, in `ecom` the Stripe SDK was used directly rather than behind an
-interface, and `Stripe\` imports spread to five files across controllers and services:
-
-```
-app/Http/Controllers/CheckoutController.php
-app/Http/Controllers/StripeWebhookController.php
-app/Services/StripeProductSyncService.php
-app/Services/CheckoutService.php
-app/Services/OrderActionService.php
-```
+The integration starts out fine — one class, one vendor SDK import. Then a controller
+needs the session object the vendor just returned, and type-hinting the vendor's class
+is the shortest path, so it happens *just this once*. Then a job needs the same thing.
+Then a model accessor reaches for a vendor constant. Nothing breaks at any step; each
+one is a two-line diff that passes review. But the vendor is now load-bearing across
+controllers, jobs, and services, and it can't be replaced — or faked in a test —
+without touching all of them.
 
 That is the outcome this pattern exists to prevent.
 
@@ -94,7 +89,18 @@ beyond the codebase:
 - **No vendor type crosses the implementation directory's boundary.** Not in a
   signature, not in a return type, not in a thrown exception. Vendor exceptions get
   caught and rethrown as the app's own; vendor response objects get mapped to the
-  app's own DTOs (see `app/Services/Stripe/SyncResult.php` for the DTO shape).
+  app's own DTOs — a readonly class of plain typed values, living beside the
+  *interface* rather than the implementation:
+
+  ```php
+  final readonly class SyncResult
+  {
+      public function __construct(
+          public string $remoteId,
+          public bool $created,
+      ) {}
+  }
+  ```
 - Credentials are read from `config()` in the implementation's constructor or in the
   provider binding — never `env()` outside `config/`.
 - One interface per *capability*, not per vendor. If a vendor covers two capabilities
