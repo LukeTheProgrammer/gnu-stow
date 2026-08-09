@@ -81,6 +81,61 @@ protected function newestFirst(Builder $query): Builder
 The method must not be `private` (the framework rejects it); `protected` is the
 default choice, since it is only ever reached through the query builder.
 
+## Synthetic attributes return `Attribute`
+
+An accessor or mutator is a method named for the attribute that returns an
+`Illuminate\Database\Eloquent\Casts\Attribute`. The `getFooAttribute()` /
+`setFooAttribute()` name-prefix convention is the old form and is not used.
+
+```php
+// ✗
+public function getUnitPriceAttribute(): float
+{
+    return $this->pack_id ? (float) $this->pack->price : $this->variant->effectivePrice();
+}
+```
+
+```php
+// ✓
+protected function unitPrice(): Attribute
+{
+    return Attribute::get(
+        fn () => $this->pack_id ? (float) $this->pack->price : $this->variant->effectivePrice(),
+    );
+}
+```
+
+The method is named in `camelCase` for the attribute (`unitPrice` → `$item->unit_price`),
+is `protected`, and returns `Attribute` — never the value's own type. Read-only
+attributes use `Attribute::get(...)`; a pair uses `Attribute::make(get: …, set: …)`,
+where the setter returns either a value for its own column or an array of columns to
+write:
+
+```php
+protected function fullName(): Attribute
+{
+    return Attribute::make(
+        get: fn () => trim("{$this->first_name} {$this->last_name}"),
+        set: fn (string $value) => [
+            'first_name' => Str::before($value, ' '),
+            'last_name' => Str::after($value, ' '),
+        ],
+    );
+}
+```
+
+Add `->shouldCache()` when the computation is expensive and the underlying columns
+cannot change mid-request. Do not cache one that reads a relation you may modify.
+
+Two things this buys beyond consistency. The getter and setter for one attribute sit in
+one method instead of two methods filed apart alphabetically, and the name is free of
+the `get…Attribute` sandwich, so `unitPrice()` is greppable as the thing it computes.
+
+**A method whose result is not an attribute stays an ordinary method.** If callers say
+`$model->thing()` rather than `$model->thing`, it is a helper, and giving it an
+`Attribute` return type only to call it as a property is a worse fit than leaving it
+alone.
+
 ## What is *not* an attribute
 
 Do not invent attributes that do not exist. These stay as they are:
@@ -88,9 +143,11 @@ Do not invent attributes that do not exist. These stay as they are:
 - **Casts** — `protected function casts(): array`, the method form. There is no
   `#[Casts]`. (See `laravel-model-enums` for what belongs in it.)
 - **`$with`, `$perPage`** — still properties; no attribute ships for them.
-- **Relations, accessors and mutators** — ordinary methods returning a relation or an
-  `Illuminate\Database\Eloquent\Casts\Attribute`. The `Attribute` return type there is
-  a *cast object*, not a PHP attribute, and the two are unrelated despite the name.
+- **Relations** — ordinary methods returning a relation instance.
+- **Accessors and mutators** — methods returning
+  `Illuminate\Database\Eloquent\Casts\Attribute`, per the section above. That
+  `Attribute` is a *cast object*, not a PHP attribute; the two are unrelated despite
+  the name, and `#[Attribute]` on a model method is always a mistake.
 - **`booted()`** — stays a method. `#[Boot]` is for *traits*: it frees a trait's boot
   method from having to be named `bootMyTrait()`. It is not a replacement for a
   model's own `booted()`, and the two run at different points.
