@@ -131,6 +131,80 @@ is, this is an ordinary `update()` and none of the above applies.
 Other genuine cases: writing `created_at`/`updated_at` explicitly (seeders, backfills),
 and `saveQuietly()` where an observer must not fire. Both should carry a comment.
 
+## Required columns are the caller's job
+
+A `NOT NULL` column with no database default must be supplied by whoever creates the
+row. Do not backfill it from a `booted()` hook or an observer.
+
+```php
+// ✗ on the model
+protected static function booted(): void
+{
+    static::saving(function (Category $category) {
+        if (empty($category->slug)) {
+            $category->slug = Str::slug($category->name);
+        }
+    });
+}
+```
+
+```php
+// ✓ at the point of creation
+Category::create([
+    'name' => $data['name'],
+    'slug' => Str::slug($data['name']),
+]);
+```
+
+Better still, derive it where the input is already being shaped — a form request's
+`prepareForValidation()`, so the value is validated (and its uniqueness checked) like
+any other field rather than appearing after validation has passed.
+
+### Why
+
+The hook looks like a convenience and is really a **silent repair**. A caller that
+forgets `slug` is a bug — it means some path is building a category from data that has
+no name to slugify, or is about to write a slug nobody chose. The hook converts that
+bug into a plausible-looking row, and the mistake surfaces later as a wrong URL or a
+`-2` suffix nobody asked for, far from the code that caused it.
+
+Without the hook the same mistake is a not-null violation on the insert, with a stack
+trace pointing at the exact controller. That is the cheapest possible bug report.
+
+Three further costs:
+
+- **The invariant moves out of reach.** A unique index on `slug` means "callers must
+  produce a unique slug". The hook doesn't produce one — `Str::slug()` on two
+  categories named "Sale" collides — so the guarantee now depends on a hook that
+  cannot see the other rows.
+- **It fires on writes you didn't mean.** `saving` runs on every update too. Any code
+  that blanks the column gets a new value silently written back.
+- **It hides which columns are required.** Reading `Category::create([...])` no longer
+  tells you what a category needs, and the answer lives in a `booted()` block three
+  files away.
+
+### A default value is fine — a computed one isn't
+
+If the goal is a *consistent default*, put it where defaults belong:
+
+- **Database default** for a constant (`->default(false)`, `->default('pending')`).
+- **`protected $attributes`** to mirror that default in memory before the row reloads.
+
+Both are declarative, apply uniformly, and don't depend on other columns. A hook that
+computes one column *from another* is not a default — it is business logic, and it
+belongs at the call site or in the service that owns the workflow.
+
+System-generated identifiers (an order number, a public token) are the same: generate
+them explicitly where the row is created, with a static helper if the algorithm needs
+a home.
+
+```php
+$order = Order::create([
+    'order_number' => Order::generateOrderNumber(),   // ✓ visible at the call site
+    …
+]);
+```
+
 ## A model never creates itself
 
 A model describes the shape of a row. It does not know how one comes to exist.
