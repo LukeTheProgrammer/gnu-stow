@@ -79,8 +79,10 @@ public function store(CouponStoreRequest $request): RedirectResponse
   typed `: array`.
 - Normalization goes in `prepareForValidation()` on the request (upcasing a coupon
   code, nulling an empty rich-text field), not in the controller before the call.
-- Authorization that is about *this request's data* may go in `authorize()`; policy
-  checks stay in the controller or middleware where they are visible.
+- **A form request never authorizes.** Leave `authorize()` off the class entirely —
+  not even for checks that look like they are about this request's data. Who may act
+  is decided by a policy, called from the controller method that type-hints the
+  request. See `laravel-authorization-architecture`.
 - **An update request's fields are all optional.** Prefix every rule with `sometimes`
   so a caller can change one field without resubmitting the whole record — but keep
   the `required`/`nullable` behind it, so an omitted key is left alone while a key
