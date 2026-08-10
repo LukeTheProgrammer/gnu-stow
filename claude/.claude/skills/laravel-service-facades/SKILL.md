@@ -34,14 +34,14 @@ class Payments extends Facade
 }
 ```
 
-**2. The binding** — the accessor string maps to the interface in the `$bindings`
+**2. The binding** — the accessor string maps to the interface in the `$singletons`
 array on `AppServiceProvider`. The interface maps to a concrete implementation in
 `register()`, where constructor arguments and config are resolved.
 
 ```php
 class AppServiceProvider extends ServiceProvider
 {
-    public $bindings = [
+    public $singletons = [
         'Payments' => PaymentInterface::class,
     ];
 
@@ -56,8 +56,23 @@ class AppServiceProvider extends ServiceProvider
 }
 ```
 
-Two hops on purpose: `$bindings` is the public name callers use, `register()` is
+Two hops on purpose: `$singletons` is the public name callers use, `register()` is
 where the implementation is chosen. Swapping providers touches only the second.
+
+### `$singletons`, not `$bindings`
+
+Both properties take the same `accessor => class` shape, so this is a one-word choice —
+and it should be `$singletons` every time.
+
+A service is **stateless**: it holds injected dependencies and nothing else. There is
+no per-request state to keep apart, so a second instance is not isolation, it is just a
+second instance. With `$bindings` the container rebuilds the service — and its entire
+dependency graph — on every single facade call, which is pure waste and gets worse the
+deeper the graph goes. A service that composes a dozen collaborators is rebuilt a dozen
+objects deep each time someone calls it.
+
+If a service ever does need per-call state, that is the bug. Pass the state as an
+argument or return it; do not reach for `$bindings` to paper over it.
 
 **3. The call site** — imports the facade and calls it statically.
 
@@ -75,6 +90,8 @@ $session = Payments::createCheckoutSession($request);
   other services — everything.
 - **Never `new` a service, and never `app(SomeInterface::class)`.** Both name the
   class the facade exists to hide.
+- **Services are registered in `$singletons`, never `$bindings`.** A service holding
+  state that makes a shared instance unsafe is a service to fix, not to rebind.
 - The facade is named for the **domain**, not the implementation — `Payments`, not
   `StripePayments`.
 - The facade accessor string matches the facade class name (`'Payments'`). Do not
@@ -103,7 +120,7 @@ are. `Payments::shouldReceive('refund')` still fakes it in a test.
 
 1. Interface in `app/Services/<Domain>/`, implementation beneath it.
 2. Facade in `app/Facades/<Domain>.php` returning `'<Domain>'`.
-3. `'<Domain>' => <Domain>Interface::class` in `AppServiceProvider::$bindings`, plus
+3. `'<Domain>' => <Domain>Interface::class` in `AppServiceProvider::$singletons`, plus
    the concrete binding in `register()`.
 4. Call it as `<Domain>::method()`.
 
