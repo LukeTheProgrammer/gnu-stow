@@ -1,16 +1,92 @@
 ---
 name: laravel-model-methods
-description: The order of members inside an Eloquent model class — properties first, then Eloquent framework hooks (casts, booted, newFactory…), then relationships sorted alphabetically with type-hinted returns, then the model's own methods, with third-party package hooks (Scout, Media Library) last. Use when writing a new model, adding a relationship or cast to an existing one, or reviewing a model in app/Models.
+description: What may live on an Eloquent model at all — five kinds of member, with every other method pushed to the enum, policy, service, or caller that owns the rule — and the order those members appear in. Use when adding any method to a model, when a model grows past its relationships, or when reviewing a model in app/Models.
 ---
 
-# Model member order
+# What belongs on a model, and in what order
 
-A model is read far more often than it is written, and the thing being looked for is
-almost always "what does this record relate to?" or "how is this column cast?". Fixing
-the order means those answers are always in the same place, and a diff that adds a
-relationship touches one predictable spot instead of the end of the file.
+Two rules, applied in this order:
 
-## The order
+1. **Does this member belong on the model at all?** Most don't.
+2. **Only then:** what shape does it take, and where does it sit in the file?
+
+Rule 2 is the easy one and most of this document, but rule 1 is the one that keeps
+models small. Applying rule 2 alone just renames the bloat.
+
+## Rule 1: a model holds five kinds of member
+
+1. **Configuration** — casts and the framework hooks Laravel calls.
+2. **Relationships.**
+3. **Scopes.**
+4. **Attributes** — values derived from this row's own loaded columns.
+5. **Package hooks** — Scout, Media Library, and friends.
+
+That is the list. **Any other method must justify its existence**, and the burden of
+proof is on the method. This inverts the usual default, where a method is waved through
+because it is short and reads nicely — which is exactly how a model ends up with thirty
+of them.
+
+### Every other method must name the home that rejected it
+
+Models bloat because the model is the *nearest* place to put something, not the right
+one. Before a plain method may stay, it has to fail all of these:
+
+| If the method… | it belongs to |
+|---|---|
+| answers "which values of this enum allow X" | the **enum** (see `laravel-model-enums`) |
+| answers "may this actor do X" | a **policy** (see `laravel-authorization-architecture`) |
+| touches another model, orchestrates, or calls a vendor SDK | a **service** (see `laravel-app-services`) |
+| shapes a query | a **scope** |
+| derives a value from this row's loaded columns, for more than one caller | an **attribute** |
+| returns a new instance of this model | a **query helper** (see `laravel-model-creation`) |
+| is none of the above | the **caller** — inline it |
+
+The enum, the policy, and the service are where model methods go to *live*, not to die.
+Most model bloat is lifecycle rules that had nowhere better to sit when they were
+written — often because the status column was a bare string at the time.
+
+### One caller is not a convention
+
+The test that removes most of them: **a name used once is a local variable, not a model
+member.**
+
+```php
+// ✗ on the model, called from exactly one place
+public function isPaid(): bool
+{
+    return $this->stripe_payment_intent_id !== null;
+}
+
+// ✓ at the call site
+$isPaid = $order->stripe_payment_intent_id !== null;
+```
+
+A member earns its place only when re-deriving the expression in several places could
+let those places **drift apart**. That is the real risk a shared name protects against.
+For a single-column check with one caller there is no drift to prevent, and the method
+is pure ceremony — an extra name, an extra indirection, and one more thing to read past
+when scanning the model.
+
+**Do not over-correct into duplication.** Three call sites each inlining
+`$order->status === OrderStatus::PENDING` is how rules drift, and is worse than the
+method was. When more than one caller needs the same judgement, it keeps a home — the
+question the table answers is *which* home, and the model is rarely it.
+
+### Attributes are a shape, not an exemption
+
+Converting a method to an Attribute does not shrink a model; it renames a member. Ask
+rule 1 first. Only once a value has earned its place *and* is a zero-argument derivation
+of this row's loaded state does it become an Attribute rather than a method.
+
+Three things disqualify a member from being an Attribute outright, and they are worth
+knowing because they are also hints that it may not belong on the model at all:
+
+- **It takes an argument.** Attributes are zero-argument by construction.
+- **It writes.** An attribute derives; it does not persist.
+- **It is static.** A value manufactured for a record that does not exist yet is not a
+  fact about a record.
+
+## Rule 2: the order
 
 1. **Properties** — traits, then constants, then `protected`/`public` properties.
 2. **Eloquent framework methods** — the ones Laravel itself calls, not you.
@@ -238,6 +314,32 @@ The test is ownership: if the method's signature is defined by a `vendor/` inter
 base class that is **not** `Illuminate\*`, it goes here. `casts()` and `booted()` are
 Laravel; `toSearchableArray()` is Scout.
 
+## Worked example: applying rule 1
+
+An `Order` carrying seven plain methods, and where each one goes:
+
+| Method | Verdict |
+|---|---|
+| `isEditable()`, `isCancellable()`, `isAddressEditable()` | **enum** — each is "which statuses permit this", so it belongs on `OrderStatus` as `allowsEditing()` etc. |
+| `canTransitionTo(OrderStatus $s)` | **delete** — a pass-through to `$order->status->canTransitionTo($s)`; takes an argument, adds nothing |
+| `generateOrderNumber()` | **service** — static, and it manufactures a value for a record that does not exist yet |
+| `addSystemNote(string $body)` | **caller** — it writes, and `$order->notes()->create([...])` says the same thing |
+| `isPaid()` | **inline**, or an attribute if the name is worth keeping |
+| `refundableAmount()` | **attribute** — real arithmetic over two of its own columns, several callers |
+
+Seven methods become zero methods and one or two attributes, and every rule lands
+somewhere it can be reused and tested on its own.
+
+The lifecycle predicates are the important ones. Once they sit on the enum, a new status
+forces every one of them to be considered — `match` is exhaustive — whereas on the model
+they were a scattered set of `in_array` checks that a new case slips silently past.
+
+**Watch the boundary as rules grow.** The enum route works only while the rule depends
+*solely* on the enum value. The moment `isAddressEditable` also has to check
+`tracking_number`, it stops being the enum's business: it is then a fact about the row
+(attribute) or a decision about an actor (policy). Move it out rather than passing the
+extra column into the enum.
+
 ## Reordering an existing model
 
 Moving methods is a pure reshuffle: **no signature, body, or visibility changes in the
@@ -246,8 +348,13 @@ in a separate commit. A reordering diff that also edits a body is unreviewable, 
 one real risk here — a `protected static function booted()` that quietly depended on
 declaration order, which it never does — is not worth confusing with actual edits.
 
+Run rule 1 over the file **before** reordering — there is no point sorting members that
+should not exist. Redistributing a method changes call sites, so do that as its own
+commit, then reorder what survives as a pure move-only diff.
+
 Check while you are in there:
 
+- Plain methods that never justified themselves — apply the table above.
 - Relationships with no return type — add the concrete `Relations\*` class.
 - Scopes with a bare `$query` or no return type — type-hint both to the same `Builder`,
   and add the `return` if the body was mutating in place.
