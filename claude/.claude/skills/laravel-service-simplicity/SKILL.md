@@ -119,7 +119,7 @@ An action is an **operation**. Plenty of a service's surface is not:
 - **Pure derivations** — a value computed from a model with no write. Move to the model
   as an accessor if they are really about one record; otherwise they are a helper.
 - **Query lookups** used in several places are a **scope** on the model, not an action
-  and not a private service helper. See `laravel-app-services`. A scope states its
+  and not a private service helper. See `laravel-service-internal`. A scope states its
   condition and nothing else — guarding a nullable argument is the caller's job, so
   scope parameters are not nullable:
 
@@ -143,7 +143,7 @@ An action is an **operation**. Plenty of a service's surface is not:
   }
   ```
 
-  The service delegates to it the same way: `($this->resend)->availableAt($order)`.
+  The service delegates to it the same way: `(new ResendConfirmation)->availableAt($order)`.
 
 - **Everything else** — shared guards, fingerprints, formatters, anything that is not an
   operation and does not belong on a model — is a **helper** in `<Domain>/Helpers/`.
@@ -159,7 +159,7 @@ An action is an **operation**. Plenty of a service's surface is not:
   is a second class.
 - **One root file per domain folder.** `<Domain>Service.php` and nothing else; actions
   in `Actions/`, helpers in `Helpers/`, DTOs and exceptions in their own folders as
-  `laravel-app-services` describes.
+  `laravel-service-internal` describes.
 - **Actions have no constructor.** Anything they need from their own domain arrives via
   `<Domain>::`; anything from another domain via that domain's facade. If an action
   wants a constructor dependency, it is naming something the service should be exposing.

@@ -1,5 +1,5 @@
 ---
-name: laravel-app-services
+name: laravel-service-internal
 description: How to structure the app's own domain services in app/Services — the ones with no third-party vendor behind them (cart, coupons, stock, checkout). Covers the domain folder, the one-word domain name, the facade, and when something should be a service at all. Use when adding a service class, when a `*Service.php` sits loose at the top of app/Services, or when naming a new domain.
 ---
 
@@ -24,7 +24,7 @@ corrects.
 
 ## No interface
 
-`laravel-third-party-services` exists because a vendor can be swapped, and the
+`laravel-service-external` exists because a vendor can be swapped, and the
 interface is the seam that makes swapping a one-line change. An internal service has
 no second implementation coming. `CartServiceInterface` with exactly one implementer
 is a file that must be edited twice for every method added, in exchange for nothing.

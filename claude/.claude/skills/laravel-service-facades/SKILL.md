@@ -98,7 +98,7 @@ $session = Payments::createCheckoutSession($request);
   use the interface's FQCN as the accessor; the string is the stable public name.
 - Everything else the service is (interface in the app's vocabulary, no vendor types
   crossing the implementation directory, DTOs beside the interface) still applies —
-  see `laravel-third-party-services`. The facade fronts that structure; it does not
+  see `laravel-service-external`. The facade fronts that structure; it does not
   replace it.
 - Value objects and DTOs are still imported directly at call sites. Only the
   *service* goes behind the facade.

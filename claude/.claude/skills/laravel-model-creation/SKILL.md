@@ -236,7 +236,7 @@ the two grow separate versions of the same rules.
 
 It also breaks the reading order. A model is the first file anyone opens to learn the
 domain, and it should answer "what is an order" — not "how does checkout work",
-which is a different question with a different owner (see `laravel-app-services`).
+which is a different question with a different owner (see `laravel-service-internal`).
 
 ## A model doesn't orchestrate its own writes either
 

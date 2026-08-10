@@ -35,7 +35,7 @@ one. Before a plain method may stay, it has to fail all of these:
 |---|---|
 | answers "which values of this enum allow X" | the **enum** (see `laravel-model-enums`) |
 | answers "may this actor do X" | a **policy** (see `laravel-authorization-architecture`) |
-| touches another model, orchestrates, or calls a vendor SDK | a **service** (see `laravel-app-services`) |
+| touches another model, orchestrates, or calls a vendor SDK | a **service** (see `laravel-service-internal`) |
 | shapes a query | a **scope** |
 | derives a value from this row's loaded columns, for more than one caller | an **attribute** |
 | returns a new instance of this model | a **query helper** (see `laravel-model-creation`) |
@@ -270,7 +270,7 @@ Two things that belong further away than this file:
 - A method that **creates an instance of the model** does not belong on the model at
   all — see `laravel-model-creation`.
 - A method that reaches into other models or a third-party SDK is a service, not a
-  model method — see `laravel-app-services`.
+  model method — see `laravel-service-internal`.
 
 ## 5. Third-party package hooks last
 

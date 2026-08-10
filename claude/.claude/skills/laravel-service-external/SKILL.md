@@ -1,5 +1,5 @@
 ---
-name: laravel-third-party-services
+name: laravel-service-external
 description: How to structure Laravel integrations with third-party services (payment providers, email/SMS senders, storage, search, shipping, CRMs, any external HTTP API). Use when adding a new external service, when touching code that imports a vendor SDK, or when a vendor class name appears in a controller, job, model, or another service.
 ---
 
@@ -109,7 +109,7 @@ beyond the codebase:
 - Don't add an interface speculatively for something that isn't a third-party
   service. Internal domain services (`CartService`, `CouponService`) have no second
   implementation coming and don't need one — they still get a domain folder and a
-  facade, just no interface. See `laravel-app-services`.
+  facade, just no interface. See `laravel-service-internal`.
 
 ## Inbound: webhooks and callbacks
 
