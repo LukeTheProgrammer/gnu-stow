@@ -86,8 +86,36 @@ $session = Payments::createCheckoutSession($request);
 
 - **Never type-hint a service class or its interface in a constructor.** If
   `PaymentInterface $payments` appears in a signature, it should be a `Payments::`
-  call in the body instead. This holds for controllers, jobs, listeners, commands,
-  other services — everything.
+  call in the body instead. This holds for controllers, jobs, listeners, commands —
+  everywhere a service is *used*.
+- **One exception: a service injecting a service it fronts.** Where one service is the
+  public face of another and exists to delegate to it, that is a composition point, not
+  a call site, and the collaborator is injected:
+
+  ```php
+  class ProductService
+  {
+      public function __construct(private ProductSyncServiceInterface $syncService) {}
+
+      public function sync(Product $product): SyncResult
+      {
+          return $this->syncService->sync($product);
+      }
+  }
+  ```
+
+  The reasoning the main rule rests on does not apply here. That rule exists because
+  injection spreads a service's type across dozens of unrelated signatures; this is one
+  signature, in the single class whose job is to front that service. Reaching for the
+  facade instead would resolve the container again in every method, for a dependency
+  that cannot change while the service lives — and a fronting service should not need
+  its own accessor string to reach the thing it wraps.
+
+  It is an exception, not a loosening: the injected type must be a service the injecting
+  service delegates to, the injecting service must be the only class naming it, and
+  everything that merely *uses* a service still calls the facade. When a service is
+  fronted this way it usually should not keep a facade of its own — two public routes to
+  the same methods is one too many.
 - **Never `new` a service, and never `app(SomeInterface::class)`.** Both name the
   class the facade exists to hide.
 - **Services are registered in `$singletons`, never `$bindings`.** A service holding

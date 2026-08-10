@@ -46,9 +46,10 @@ final class CancelOrder
 }
 ```
 
-The service constructs the action where it uses it and delegates. **No constructor, no
-properties** — an action has no dependencies to wire and no state to carry between
-calls, so injecting one buys nothing and only hides which method uses what:
+The service constructs the action where it uses it and delegates. Actions are **not**
+injected — one has no dependencies to wire and no state to carry between calls, so
+injecting it buys nothing and only hides which method uses what. A service the domain
+fronts is the exception and does get injected; see Rules.
 
 ```php
 class OrderService
@@ -163,13 +164,39 @@ An action is an **operation**. Plenty of a service's surface is not:
 - **Actions have no constructor.** Anything they need from their own domain arrives via
   `<Domain>::`; anything from another domain via that domain's facade. If an action
   wants a constructor dependency, it is naming something the service should be exposing.
-- **The service has no constructor either.** It writes `(new SomeAction)(…)` inside the
-  method that needs it. This is the sole exception to the "never `new`" rule in
-  `laravel-service-facades`: that rule protects *services*, which are swappable and
-  sit behind a facade. An action is neither — it is an internal, stateless,
-  dependency-free implementation detail of the one class allowed to name it, so the
-  container adds a lookup and buys no seam. Everything else still goes through its
-  facade.
+- **The service constructs its own actions and helpers**, writing `(new SomeAction)(…)`
+  inside the method that needs it rather than injecting them. This is the sole
+  exception to the "never `new`" rule in `laravel-service-facades`: that rule protects
+  *services*, which are swappable and sit behind a facade. An action is neither — it is
+  an internal, stateless, dependency-free implementation detail of the one class allowed
+  to name it, so the container adds a lookup and buys no seam.
+- **The service's constructor is for container-managed collaborators only** — another
+  service it fronts, and nothing else. That is the one thing worth injecting: it is
+  interface-backed, the container builds it, and resolving it again inside every method
+  that uses it would re-enter the container for a dependency that never changes across
+  the service's lifetime. Since the service is a singleton, one injection resolves it
+  once for the whole request.
+
+  ```php
+  class ProductService
+  {
+      public function __construct(private ProductSyncServiceInterface $syncService) {}
+
+      public function sync(Product $product): SyncResult
+      {
+          return $this->syncService->sync($product);      // ✓ injected: a service
+      }
+
+      public function uniqueSlug(string $slug): string
+      {
+          return (new ProductSlug)->unique($slug);        // ✓ constructed: a helper
+      }
+  }
+  ```
+
+  The line is what the collaborator *is*, not where it lives. A service — swappable,
+  interface-backed, container-built — is injected. An action or helper — internal,
+  stateless, dependency-free — is `new`ed at the point of use.
 - **Only the service names an action or helper class.** A class name from `Actions/` or
   `Helpers/` appearing anywhere else — another action, a controller, a job, **a test** —
   is this skill's bug. Tests are not an exception: they exercise the domain through
@@ -180,8 +207,9 @@ An action is an **operation**. Plenty of a service's surface is not:
 - **Private helpers move with their caller.** A helper used by exactly one extracted
   action becomes a private method on that action, and stops being visible to anything
   else. This is most of the size reduction.
-- **The service keeps no state at all** — no constructor, no properties, no consts that
-  belong to one operation. A constant used by a single action lives on that action.
+- **The service keeps no state of its own** — no properties beyond the injected
+  collaborators above, and no consts that belong to one operation. A constant used by a
+  single action lives on that action.
 
 ## Why
 
@@ -247,6 +275,8 @@ Three greps:
   delegates. A body with branching, a transaction, or more than one statement is an
   operation that has not been extracted yet.
 - `ls app/Services/<Domain>/*.php` should print exactly one file.
-- Grep the domain folder for `use App\Services\<Domain>\` outside the service, and for
-  `__construct` anywhere in it. Both should be empty — no class in the folder has
-  constructor dependencies, so nothing needs wiring.
+- Grep the domain folder for `use App\Services\<Domain>\` outside the service — should
+  be empty.
+- Grep it for `__construct` under `Actions/` and `Helpers/` — should be empty. The only
+  constructor allowed in the folder is the service's, and its parameters must all be
+  other services.
